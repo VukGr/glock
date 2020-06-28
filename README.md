@@ -22,5 +22,6 @@ Though I prefer lisp-based languages, if I was making this now I'd probably go w
 
 However at 120mb of ram usage and 30mb binary size it isn't horrid enough to warrant a rewrite in my opinion, especially considering the amount of electron based apps out nowadays.
 
+## Download
 
-
+You can download the windows binary at: https://github.com/VukGr/glock/releases/tag/1.0
