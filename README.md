@@ -12,16 +12,8 @@ In the left hand side every block signifies an hour.
 
 In the right hand side every block signifies a minute, while the current minute block gradually fills up.
 
-Colors, along with the offset between the blocks, can be configured in the glock.json file.
-
-## Why Racket
-
-It was what I was learning at the time.
-
-Though I prefer lisp-based languages, if I was making this now I'd probably go with C or C++ to lower memory usage (both RAM and binary).
-
-However at 120mb of ram usage and 30mb binary size it isn't horrid enough to warrant a rewrite in my opinion, especially considering the amount of electron based apps out nowadays.
+Colors, along with the sizes and offsets between the blocks, can be configured in the glock.json file.
 
 ## Download
 
-You can download the windows binary at: https://github.com/VukGr/glock/releases/tag/1.0
+You can download the windows binary at: https://github.com/VukGr/glock/releases/

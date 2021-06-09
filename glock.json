@@ -3,5 +3,6 @@
 	"inactive": [255, 210, 185],
 	
 	"size": 16,
-	"offset": 1
+	"offset": 1,
+	"margin": 1
 }

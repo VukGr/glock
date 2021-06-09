@@ -3,108 +3,90 @@
 (require racket/date)
 (require json)
 
-(define inactive (make-object color% 100 100 100))
-(define active (make-object color% 255 255 255))
+(define (get-config path)
+  (let ((config-hash (string->jsexpr (file->string path))))
+    (λ (option)
+      (hash-ref config-hash option))))
 
-(define rect-size 20)
-(define rect-offset 5)
-(define clock-area-offset 5)
+(define config (get-config "glock.json"))
 
-(let ((config (string->jsexpr (file->string "glock.json"))))
-  (set! rect-size (hash-ref config 'size))
-  (set! rect-offset (hash-ref config 'offset))
-  (set! clock-area-offset (hash-ref config 'offset))
-
-  (let ((config-active (hash-ref config 'active))
-        (config-inactive (hash-ref config 'inactive)))
-    (if (list? config-active)
-        (set! active (make-object color%
-                       (first config-active)
-                       (second config-active)
-                       (third config-active)))
-        (set! active config-active))
-    (if (list? config-inactive)
-        (set! inactive (make-object color%
-                       (first config-inactive)
-                       (second config-inactive)
-                       (third config-inactive)))
-        (set! inactive config-inactive))))
-
-(define frame-width
-  (+ clock-area-offset
-     (* rect-size 8)
-     (* rect-offset 8)
-     6))
-
-(define frame-height
-  (+ clock-area-offset
-     (* rect-size 12)
-     (* rect-offset 12)
-     29))
-
+(define make-color ((curry make-object) color%))
+(define inactive (apply make-color (config 'inactive)))
+(define active (apply make-color (config 'active)))
+    
 (define frame (new frame%
                    [label "Glock"]
-                   [width frame-width]
-                   [height frame-height]
+                   [width (+ (* (config 'margin) 2)
+                             (* (config 'size) 8)
+                             (* (config 'offset) 8)
+                             5)]
+                   [height (+ (* (config 'margin) 2)
+                              (* (config 'size) 12)
+                              (* (config 'offset) 12)
+                              28)]
                    [style '(no-resize-border
                             float
                             metal
                             )]))
-(define canvas (new canvas%
-                    [parent frame]))
-(define dc (send canvas get-dc))
+
+(define dc (send (new canvas%
+                      [parent frame]) get-dc))
 
 (send frame show #t)
 (sleep/yield 0.1)
 
 (send dc set-pen "white" 1 'transparent)
-(send dc set-brush active 'solid)
 
 (define (draw-clock time)
-  (define (draw-hours hour)
+  (define (draw-rect x y color percent)
+    (letrec ((size (config 'size))
+             (margin (config 'margin))
+             (offset (config 'offset))
+             (height (* size percent)))
+      
+      (define (get-pos i)
+        (+ margin (* i (+ size offset))))
+  
+      (send dc set-brush color 'solid)
+      (send dc draw-rectangle
+            (get-pos x)
+            (+ (get-pos y) (- size height))
+            size
+            height)))
+  
+  (define (draw-hours time)
     (for ((x 3))
       (for ((y 12))
-        (if (> hour (+ (* x 12) (- 11 y)))
-            (send dc set-brush active 'solid)
-            (send dc set-brush inactive 'solid))
-        (send dc draw-rectangle (+ (* x (+ rect-size rect-offset)) clock-area-offset)
-                                (+ (* y (+ rect-size rect-offset)) clock-area-offset)
-                                rect-size rect-size))))
-
-  (define (draw-minutes minute)
+        (let ((box-hour (+ (* x 12) (- 11 y))))
+          (draw-rect x y
+                     (if (> (date-hour time) box-hour) active inactive)
+                     1.0)
+          (when (= (date-hour time) box-hour)
+            (draw-rect x y
+                       active
+                       (/ (date-minute time) 60)))))))
+  
+  (define (draw-minutes time)
     (for ((x 5))
       (for ((y 12))
         (let ((box-minute (+ x (* (- 11 y) 5))))
-          (if (> minute box-minute)
-              (send dc set-brush active 'solid)
-              (send dc set-brush inactive 'solid))
-          (send dc draw-rectangle (+ (* x (+ rect-size rect-offset))
-                                     (+ clock-area-offset (* rect-offset 3) (* rect-size 3)))
-                (+ (* y (+ rect-size rect-offset)) clock-area-offset)
-                rect-size rect-size)))))
-
-  (define (draw-seconds time)  
-    (define minute (date-minute time))
-    (define second (date-second time))
-    
-    (define y (- 11 (floor (/ minute 5))))
-    (define x (modulo minute 5))
-    
-    (define height (floor (* rect-size (/ second 60))))
-    
-    (send dc set-brush active 'solid)
-    (send dc draw-rectangle (+ (* x (+ rect-size rect-offset))
-                                     (+ clock-area-offset (* rect-offset 3) (* rect-size 3)))
-                (+ (- rect-size height) (* y (+ rect-size rect-offset)) clock-area-offset)
-                rect-size height))
+          (draw-rect (+ x 3) y
+                     (if (> (date-minute time) box-minute) active inactive)
+                     1.0)
+          (when (= (date-minute time) box-minute)
+            (draw-rect (+ x 3)
+                       y
+                       active
+                       (/ (date-second time) 60)))))))
   
-  (draw-hours (date-hour time))
-  (draw-minutes (date-minute time))
-  (draw-seconds time))
+  (draw-hours time)
+  (draw-minutes time))
 
-(define (loop)
-  (draw-clock (current-date))
-  (sleep/yield 1)
-  (loop))
+(draw-clock (current-date))
 
-(loop)
+(define timer
+  (new timer%
+       (interval 1000)
+       (notify-callback
+        (λ ()
+          (draw-clock (current-date))))))
